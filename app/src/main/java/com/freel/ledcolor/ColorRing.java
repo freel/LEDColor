@@ -1,7 +1,6 @@
 package com.freel.ledcolor;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -10,26 +9,12 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.SweepGradient;
-import android.os.AsyncTask;
-import android.os.Bundle;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.TextView;
-
-import com.freel.ledcolor.R;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
-
-import java.io.IOException;
 
 /**
+ * LED Color
  * Created by freel on 31.10.2015.
  */
 public class ColorRing extends View{
@@ -39,6 +24,16 @@ public class ColorRing extends View{
      */
     private static final int[] COLORS = new int[] { 0xFFFF0000, 0xFFFF00FF,
             0xFF0000FF, 0xFF00FFFF, 0xFF00FF00, 0xFFFFFF00, 0xFFFF0000 };
+
+    /**
+     * Действия для вызова
+     */
+    private enum callbackAction {
+        LED_ON,
+        LED_OFF,
+        SET_RGB,
+        SET_A;
+    };
 
     /**
      * Толщина цветового кольца
@@ -58,88 +53,72 @@ public class ColorRing extends View{
     private int mPreferredColorCenterRadius;
 
     /**
-     * Радиус
+     * Радиус ореола центрального круга
      */
     private int mColorCenterHaloRadius;
     private int mPreferredColorCenterHaloRadius;
 
     /**
-     * The radius of the pointer.
+     * Радиус указателя
      */
     private int mColorPointerRadius;
 
     /**
-     * The radius of the halo of the pointer.
+     * Радиус ореола указателя
      */
     private int mColorPointerHaloRadius;
 
     /**
-     * The rectangle enclosing the color wheel.
+     * Прямоугольник в который вписано цветовое кольцо
      */
     private RectF mColorWheelRectangle = new RectF();
 
     /**
-     * The rectangle enclosing the center inside the color wheel.
+     * Прямоугольник в который вписан центральный круг
      */
     private RectF mCenterRectangle = new RectF();
 
     /**
-     * The pointer's position expressed as angle (in rad).
+     * Позиция указателя(угол).
      */
     private float mAngle;
 
     /**
-     * {@code Paint} instance used to draw the color wheel.
+     * {@code Paint} отрисовка цветового кольца.
      */
     private Paint mColorWheelPaint;
 
     /**
-     * {@code Paint} instance used to draw the pointer's "halo".
+     * {@code Paint} отрисовка ореола указателя.
      */
     private Paint mPointerHaloPaint;
 
     /**
-     * {@code Paint} instance used to draw the pointer (the selected color).
+     * {@code Paint} отрисовка указателя выбранным цветом.
      */
     private Paint mPointerColor;
 
     /**
-     * {@code Paint} instance used to draw the center with the new selected
-     * color.
+     * {@code Paint} отрисовка центрального круга выбраным цветом
      */
-    private Paint mCenterNewPaint;
+    private Paint mCenterPaint;
 
     /**
-     * {@code Paint} instance used to draw the center with the old selected
-     * color.
-     */
-    private Paint mCenterOldPaint;
-
-    /**
-     * {@code Paint} instance used to draw the halo of the center selected
-     * colors.
+     * {@code Paint} отрисовка ореола центрального круга
      */
     private Paint mCenterHaloPaint;
 
     /**
-     * The ARGB value of the center with the new selected color.
+     * Выбранный цвет ARGB
      */
-    public int mCenterNewColor;
+    public int mColor;
 
     /**
-     * The ARGB value of the center with the old selected color.
+     * Состояние лампы
+     * {@code true} лампа включена
+     * {@code false} лампа выключена
      */
-    private int mCenterOldColor;
-
-    /**
-     * Whether to show the old color in the center or not.
-     */
-    private boolean mShowCenterOldColor;
-
-    /**
-     * The ARGB value of the currently selected color.
-     */
-    private int mColor;
+    public boolean mLedOn = false;
 
     /**
      * Number of pixels the origin of this view is moved in X- and Y-direction.
@@ -178,59 +157,8 @@ public class ColorRing extends View{
     private boolean mUserIsMovingPointer = false;
 
     /**
-     * {@code TouchAnywhereOnColorWheelEnabled} instance used to control <br>
-     * if the color wheel accepts input anywhere on the wheel or just <br>
-     * on the halo.
+     * Интерфейс обратного вызова
      */
-    private boolean mTouchAnywhereOnColorWheelEnabled = true;
-
-    /**
-     * {@code onColorSelectedListener} instance of the onColorSelectedListener
-     */
-    private OnColorSelectedListener onColorSelectedListener;
-
-    /**
-     * Color of the latest entry of the onColorSelectedListener.
-     */
-    private int oldSelectedListenerColor;
-
-    /**
-     * {@code onColorChangedListener} instance of the onColorChangedListener
-     */
-    private OnColorChangedListener onColorChangedListener;
-
-    /**
-     * Color of the latest entry of the onColorChangedListener.
-     */
-    private int oldChangedListenerColor;
-
-    /**
-     * Color calculated in calculateColor func.
-     */
-    private int calculatedColor;
-
-    private TextView textView;
-
-    /**
-     * An interface that is called whenever a new color has been selected.
-     * Currently it is always called when the color wheel has been released.
-     *
-     */
-    public interface OnColorSelectedListener {
-        public void onColorSelected(int color);
-    }
-
-    /**
-     * An interface that is called whenever the color is changed. Currently it
-     * is always called when the color is changes.
-     *
-     * @author lars
-     *
-     */
-    public interface OnColorChangedListener {
-        public void onColorChanged(int color);
-    }
-
     public interface MyCallback{
         void callBackReturn();
     }
@@ -240,6 +168,12 @@ public class ColorRing extends View{
     void registerCallBack(MyCallback callback){
         this.myCallback = callback;
     }
+
+    /**
+     * строка url команды
+     * см. initCallback(callbackAction action)
+     */
+    public String url;
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -266,7 +200,7 @@ public class ColorRing extends View{
         canvas.drawCircle(0, 0, mColorCenterHaloRadius, mCenterHaloPaint);
 
         // Draw the new selected color in the center.
-        canvas.drawArc(mCenterRectangle, 0, 360, true, mCenterNewPaint);
+        canvas.drawArc(mCenterRectangle, 0, 360, true, mCenterPaint);
     }
 
     @Override
@@ -373,20 +307,14 @@ public class ColorRing extends View{
         mPointerColor = new Paint(Paint.ANTI_ALIAS_FLAG);
         mPointerColor.setColor(calculateColor(mAngle));
 
-        mCenterNewPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mCenterNewPaint.setColor(calculateColor(mAngle));
-        mCenterNewPaint.setStyle(Paint.Style.FILL);
-
-        mCenterOldPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mCenterOldPaint.setColor(calculateColor(mAngle));
-        mCenterOldPaint.setStyle(Paint.Style.FILL);
-
+        mCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mCenterPaint.setColor(calculateColor(mAngle));
+        mCenterPaint.setStyle(Paint.Style.FILL);
         mCenterHaloPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mCenterHaloPaint.setColor(Color.BLACK);
         mCenterHaloPaint.setAlpha(0x00);
 
-        mCenterNewColor = calculateColor(mAngle);
-        mCenterOldColor = calculateColor(mAngle);
+        mColor = calculateColor(mAngle);
     }
 
     private int calculateColor(float angle) {
@@ -441,6 +369,12 @@ public class ColorRing extends View{
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+
+        /**
+         * Color calculated in calculateColor func.
+         */
+        int calculatedColor;
+
         getParent().requestDisallowInterceptTouchEvent(true);
 
         // Convert coordinates to our internal coordinate system
@@ -464,16 +398,22 @@ public class ColorRing extends View{
                 else if (x >= -mColorCenterRadius && x <= mColorCenterRadius
                         && y >= -mColorCenterRadius && y <= mColorCenterRadius) {
                     mCenterHaloPaint.setAlpha(0x50);
-                    mAngle = colorToAngle(getOldCenterColor());
                     calculatedColor = calculateColor(mAngle);
                     setColor(calculatedColor);
-                    myCallback.callBackReturn();
+                    //Проверка включена ли лампа
+                    if (mLedOn){
+                        mLedOn = false;
+                        initCallback(callbackAction.LED_OFF);
+                    }
+                    else{
+                        mLedOn = true;
+                        initCallback(callbackAction.LED_ON);
+                    }
                     invalidate();
                 }
                 // Check whether the user pressed anywhere on the wheel.
                 else if (Math.sqrt(x*x + y*y)  <= mColorWheelRadius + mColorPointerHaloRadius
-                        && Math.sqrt(x*x + y*y) >= mColorWheelRadius - mColorPointerHaloRadius
-                        && mTouchAnywhereOnColorWheelEnabled) {
+                        && Math.sqrt(x*x + y*y) >= mColorWheelRadius - mColorPointerHaloRadius) {
                     mUserIsMovingPointer = true;
                     invalidate();
                 }
@@ -489,8 +429,8 @@ public class ColorRing extends View{
                     calculatedColor = calculateColor(mAngle);
                     mPointerColor.setColor(calculatedColor);
 
-                    setNewCenterColor(mCenterNewColor = calculatedColor);
-                    myCallback.callBackReturn();
+                    setNewCenterColor(mColor = calculatedColor);
+                    initCallback(callbackAction.SET_RGB);
                     invalidate();
                 }
                 // If user did not press pointer or center, report event not handled
@@ -502,19 +442,7 @@ public class ColorRing extends View{
             case MotionEvent.ACTION_UP:
                 mUserIsMovingPointer = false;
                 mCenterHaloPaint.setAlpha(0x00);
-
-                if (onColorSelectedListener != null && mCenterNewColor != oldSelectedListenerColor) {
-                    onColorSelectedListener.onColorSelected(mCenterNewColor);
-                    oldSelectedListenerColor = mCenterNewColor;
-                }
-
                 invalidate();
-                break;
-            case MotionEvent.ACTION_CANCEL:
-                if (onColorSelectedListener != null && mCenterNewColor != oldSelectedListenerColor) {
-                    onColorSelectedListener.onColorSelected(mCenterNewColor);
-                    oldSelectedListenerColor = mCenterNewColor;
-                }
                 break;
         }
         return true;
@@ -535,59 +463,41 @@ public class ColorRing extends View{
         mPointerColor.setColor(color);
     }
 
-    public static String sendColor(String colorUrl) {
-        HttpClient httpclient = new DefaultHttpClient();
-        HttpGet httpget = new HttpGet(colorUrl);
-
-        try {
-            HttpResponse response = httpclient.execute(httpget);
-            HttpEntity httpEntity =response.getEntity();
-            String line = EntityUtils.toString(httpEntity, "UTF-8");
-        }
-        catch (IOException e) {
-            return "i";
-        }
-        return "n";
-    }
-
-    public int getOldCenterColor() {
-        return mCenterOldColor;
-    }
-
     /**
      * Change the color of the center which indicates the new color.
      *
      * @param color int of the color.
      */
     public void setNewCenterColor(int color) {
-        mCenterNewColor = color;
-        mCenterNewPaint.setColor(color);
-        if (mCenterOldColor == 0) {
-            mCenterOldColor = color;
-            mCenterOldPaint.setColor(color);
-        }
-        if (onColorChangedListener != null && color != oldChangedListenerColor ) {
-            onColorChangedListener.onColorChanged(color);
-            oldChangedListenerColor  = color;
-        }
+        mColor = color;
+        mCenterPaint.setColor(color);
         invalidate();
     }
 
-    /**
-     * Convert a color to an angle.
-     *
-     * @param color The RGB value of the color to "find" on the color wheel.
-     *
-     * @return The angle (in rad) the "normalized" color is displayed on the
-     *         color wheel.
-     */
-    private float colorToAngle(int color) {
-        float[] colors = new float[3];
-        Color.colorToHSV(color, colors);
+    private void initCallback(callbackAction action){
+        switch (action){
+            case LED_OFF:
+                url = "LED=OFF";
+                break;
+            case LED_ON:
+                /**
+                 * Необходимо восстанавливать последний цвет
+                 */
+                url = Color.red(mColor) + "," + Color.green(mColor) + "," + Color.blue(mColor);
+                break;
+            case SET_RGB:
+                if (mLedOn) {
+                    url = Color.red(mColor) + "," + Color.green(mColor) + "," + Color.blue(mColor);
+                }
+                break;
+            case SET_A:
+                url = "A=" + Color.alpha(mColor);
+                break;
+        }
 
-        return (float) Math.toRadians(-colors[0]);
+
+        myCallback.callBackReturn();
     }
-
 
 
 }

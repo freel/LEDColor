@@ -7,6 +7,7 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 
 /**
+ * LED Color
  * Created by user on 05.11.2015.
  */
 public class PrefActivity extends PreferenceActivity {
